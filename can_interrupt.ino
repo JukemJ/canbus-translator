@@ -51,6 +51,7 @@ byte battery_light_off[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 byte abs_data[8] = {0x00, 0x00, abs_light, 0x00, 0x00, 0x00, 0x00, stability_control};
 byte MIL_oil_pressure[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};                    //turns off MIL and oil pressure lights
 byte keepOn[8] = {0x40, turn_signal, backlight, 0x0A, 0x4C, 0x00, parking_brake_light, 0x00};      //wakeup message
+                                                                                                  //Power state controlled by first byte? 0x40 = run, 0x20 = ACC, 0x10 = off
 
 void loop()
 {
