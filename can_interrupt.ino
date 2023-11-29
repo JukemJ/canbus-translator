@@ -8,7 +8,7 @@ unsigned char len = 0;
 unsigned char rxBuf[8];
 char msgString[128];                        // Array to store serial string
 bool keyOn = false;
-bool debug = true;
+bool debug = true;                          // set to true to print out read messages in readCAN function
 bool brake_pedal_pressed = false;
 
 #define CAN1_INT 2                              // Set INT to pin 2
