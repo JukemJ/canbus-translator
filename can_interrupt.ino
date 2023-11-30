@@ -44,6 +44,11 @@ byte abs_light = 0x00;                // 0x00 = off, 0x01 = solid, 0x02= fast bl
 byte stability_control = 0x00;        // 0x00 = off, 0x50 = solid, 0x90 = slow blink, 0xF0 = fast blink
 byte trans_temp = 0x40;               // 0x40 - 0x80                             
 byte engine_temp = 0x60;              // 0x60 - 0x90, 0xC0 - 0xCC, 0xB0 = overheat warning
+byte gear_selection = 0x00;           // 0x00 = P, 0x20 = R, 0x40 = N, 0x60 = D, 0x80 = M, 0xC0 = 2, 0xA0 = 1
+byte manual_gear = 0x10;              // 0x10 = 1, 0x20 = 2, 0x30 = 3
+byte hydro1 = 0x40;                   // 0x40 = off, 0x80 = on
+byte hydro2 = 0x00;                   // 0x00 = off, 0x20 = on
+long int counter = 0;
 
 byte seatbelt[8] = {0x80, 0x5F, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x28};
 byte door_ajar[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};             
@@ -51,7 +56,8 @@ byte battery_light_off[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 byte abs_data[8] = {0x00, 0x00, abs_light, 0x00, 0x00, 0x00, 0x00, stability_control};
 byte MIL_oil_pressure[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};                    //turns off MIL and oil pressure lights
 byte keepOn[8] = {0x40, turn_signal, backlight, 0x0A, 0x4C, 0x00, parking_brake_light, 0x00};      //wakeup message
-                                                                                                  //Power state controlled by first byte? 0x40 = run, 0x20 = ACC, 0x10 = off
+byte hydroboost1[8] = {0x00, 0x00, 0x00, hydro1, 0x00, 0x00, 0x00, 0x00}; 
+byte hydroboost2[8] = {0x83,0x69, 0x81, 0x4F, 0x81, 0x4F, hydro2, 0x00};
 
 void loop()
 {
@@ -62,6 +68,7 @@ void loop()
     if(currentMillis - previousMillis > interval){
       previousMillis = currentMillis;
       sendData();
+      counter++;
     }
   }
 }
@@ -71,17 +78,16 @@ void readCAN(){
 
   //if(debug) printMessage(rxId, len, rxBuf);
 
-  if(rxId == 0x3B2){
+  if(rxId == 0x3B2){                              //vehicle power state (first byte): 0x10 = off, 0x20 = ACC, 0x40 = on
     if(debug) printMessage(rxId, len, rxBuf);
     if(rxBuf[0] == 0x40) keyOn = true;
     else keyOn = false;
   }
-  if(rxId == 0x3C3){
+  if(rxId == 0x3C3){                             //reading brake pedal (2nd byte): 0x00 = off, 0x01 = on 
     if(debug) printMessage(rxId, len, rxBuf);
     if(rxBuf[1] == 0x01) brake_pedal_pressed = true;
     else brake_pedal_pressed = false;
   }
-  
   
 }
 
@@ -91,6 +97,12 @@ void sendData(){
 
   sndStat = CAN0.sendMsgBuf(0x3AE, 0, 8, door_ajar);              //cancel door ajar message and chime
   sndStat = CAN0.sendMsgBuf(0x42C, 0, 8, battery_light_off);      //turns off battery light
+
+  sndStat = CAN0.sendMsgBuf(0x165, 0, 8, hydroboost1);
+  //sndStat = CAN0.sendMsgBuf(0x200, 0, 8, hydroboost2);
+
+  byte gear_data[8] = {manual_gear, 0x10, 0x00, 0x00, gear_selection, 0x00, 0x00, 0x00};
+  sndStat = CAN0.sendMsgBuf(0x151, 0, 0, gear_data);              
   
   byte engine_temp_data[8] = {engine_temp, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00};
   sndStat = CAN0.sendMsgBuf(0x156, 0, 8, engine_temp_data);
