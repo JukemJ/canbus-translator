@@ -14,6 +14,8 @@ This is an Arduino based CANBUS translator for our prototype vehicle. This allow
 | 13 | SCK | SCK |
 | 2  | INT | INT |
 
+![wiring diagram](wiring-diagram.png)
+
 # Code
 The code takes input on the CAN1 interface from the BCM and remaps the signals before sending them out on the CAN0 interface to the instrument cluster.
 
