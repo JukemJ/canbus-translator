@@ -3,17 +3,6 @@ This is an Arduino based CANBUS translator for our prototype vehicle. This allow
 
 # Wiring
 
-| Arduino | MCP2515 | MCP2515 | 
-| :---: | :---: | :---: |
-| 5V | VCC | VCC |
-| GND | GND | GND |
-| 9 | CS |   |
-| 8 |   | CS |
-| 12 | SO | SO |
-| 11 | SI | SI |
-| 13 | SCK | SCK |
-| 2  | INT | INT |
-
 ![wiring diagram](wiring-diagram.png)
 
 # Code
