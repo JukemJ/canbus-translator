@@ -3,7 +3,9 @@ This is an Arduino based CANBUS translator for our prototype vehicle. This allow
 
 # Wiring
 
-![wiring diagram](wiring-diagram.png)
+![wiring diagram](images/fritzing%20wiring.png)
+![breadboard build](images/proto-1.jpg)
+![breadboard build](images/proto-2.jpg)
 
 # Code
 The code takes input on the CAN1 interface from the BCM and remaps the signals before sending them out on the CAN0 interface to the instrument cluster.
