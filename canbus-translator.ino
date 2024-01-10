@@ -37,7 +37,7 @@ byte gear_selection = 0x00;           // 0x00 = P, 0x20 = R, 0x40 = N, 0x60 = D,
 byte manual_gear = 0x10;              // 0x10 = 1, 0x20 = 2, 0x30 = 3
 byte hydro1 = 0x40;                   // 0x40 = off, 0x80 = on
 byte hydro2 = 0x00;                   // 0x00 = off, 0x20 = on
-byte power_status = 0x10;              // 0x10 = off, 0x20 = ACC, 0x40 = key on
+byte power_status = 0x00;              // 0x10 = off, 0x20 = ACC, 0x40 = key on
 
 unsigned int vehicle_speed_kph = 0;
 unsigned int state_of_charge_percent = 0;
@@ -122,12 +122,11 @@ void readCAN2(){
     if(debug) printMessage(rxId, len, rxBuf);
     vehicle_speed_kph = rxBuf[0];
     state_of_charge_percent = rxBuf[2] * 256  + rxBuf[1];       //SoC info on byte[2] and byte[1] (multiplied by 100 e.g. 10000 == 100.00%)
-    Serial.println(state_of_charge_percent);
+    //Serial.println(state_of_charge_percent);
     //---------------------------------------------------------------===
-    speed = state_of_charge_percent / 100 * 0.64;                        //for now using speedo for state of charge percentage
+    if(high_voltage_active) speed = state_of_charge_percent / 100 * 0.64;
+    else speed = 0;                                                                 //for now using speedo for state of charge percentage
     //-----------------------------------------------------------------------
-    if(bitRead(rxBuf[4],0) == 1) power_status = 0x40;
-    else power_status = 0x20;
     if(bitRead(rxBuf[4],1) == 1) minor_fault = true;
     else minor_fault = false;
     if(bitRead(rxBuf[4],2) == 1) major_fault = true;
@@ -136,7 +135,8 @@ void readCAN2(){
 
   if(rxId == 0x98FF7C3C){                                  //Extended ID (0x18FF7C3C): parking brake
     if(debug) printMessage(rxId, len, rxBuf);
-    Serial.println(major_fault);
+    if(rxBuf[0] == 0x51) power_status = 0x20;
+    else if(rxBuf[0] == 0x55 || rxBuf[0] == 0x5F) power_status = 0x40;
     if(bitRead(rxBuf[0],4) == 1) parking_brake_light = byte(0xC0);        //byte[0] is parking brake status: on = 0x5F, off = 0x4F
     else parking_brake_light = byte(0x00);
     if(bitRead(rxBuf[0],3) == 1) high_voltage_active = true;
@@ -175,7 +175,7 @@ void sendData(){
   CAN0.sendMsgBuf(0x156, 0, 8, engine_temp_data);
   CAN0.sendMsgBuf(0x230, 0, 8, trans_temp_data);
   CAN0.sendMsgBuf(0x415, 0, 8, abs_data);
-  if(!major_fault && !minor_fault) CAN0.sendMsgBuf(0x420, 0, 8, MIL_oil_pressure);  
+  if(!major_fault) CAN0.sendMsgBuf(0x420, 0, 8, MIL_oil_pressure);  
   CAN0.sendMsgBuf(0x201, 0, 8, rpm_speed_data);
 
   // sndStat = CAN0.sendMsgBuf(0x165, 0, 8, hydroboost1);
@@ -186,15 +186,14 @@ void sendData(){
 
   //GAUGE SWEEPING
   if(brake_pedal_pressed){ 
-    speed++;
-    if(speed > 0x40) speed = 0x00;
-    rpm++;
-    if(rpm > 0x60) rpm = 0x00;
+    rpm = 40;
+  
   }
-  engine_temp++;
-  if(engine_temp > 0xAF) engine_temp = 0x60;
-  trans_temp++;
-  if(trans_temp > 0x80) trans_temp = 0x40;
+  else rpm = 10;
+  // engine_temp++;
+  // if(engine_temp > 0xAF) engine_temp = 0x60;
+  // trans_temp++;
+  // if(trans_temp > 0x80) trans_temp = 0x40;
 }
 // -------------------------------------- PRINT TO SERIAL FOR DEBUGGING -----------------------------------------------
 void printMessage(long unsigned int id, unsigned char length, unsigned char buffer[8]){
