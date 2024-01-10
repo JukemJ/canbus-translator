@@ -37,7 +37,7 @@ byte gear_selection = 0x00;           // 0x00 = P, 0x20 = R, 0x40 = N, 0x60 = D,
 byte manual_gear = 0x10;              // 0x10 = 1, 0x20 = 2, 0x30 = 3
 byte hydro1 = 0x40;                   // 0x40 = off, 0x80 = on
 byte hydro2 = 0x00;                   // 0x00 = off, 0x20 = on
-byte power_status = 0x40;              // 0x10 = off, 0x20 = ACC, 0x40 = key on
+byte power_status = 0x10;              // 0x10 = off, 0x20 = ACC, 0x40 = key on
 
 unsigned int vehicle_speed_kph = 0;
 unsigned int state_of_charge_percent = 0;
@@ -98,14 +98,14 @@ void readCAN1(){
 
   if(debug) printMessage(rxId, len, rxBuf);
 
-  if(rxId == 0x3B2){                              //vehicle power state (first byte): 0x10 = off, 0x20 = ACC, 0x40 = on
+  if(rxId == 0x3B2){                              //vehicle power state (byte[0]): 0x10 = off, 0x20 = ACC, 0x40 = on
     if(debug) printMessage(rxId, len, rxBuf);
 
     if(rxBuf[0] == 0x40) power_status = 0x40;
     else power_status = 0x40;
   }
 
-  if(rxId == 0x3C3){                             //reading brake pedal (2nd byte): 0x00 = off, 0x01 = on 
+  if(rxId == 0x3C3){                             //reading brake pedal (byte[1]): 0x00 = off, 0x01 = on 
     if(debug) printMessage(rxId, len, rxBuf);
 
     if(rxBuf[1] == 0x01) brake_pedal_pressed = true;
@@ -118,26 +118,26 @@ void readCAN2(){
 
   //if(debug && rxId > 0xFFF) printMessage(rxId, len, rxBuf);
 
-  if(rxId == 0x98FFE23C){                              //speed, soc, gear selection, fault
+  if(rxId == 0x98FFE23C){                              //Extended ID (0x18FFE23C): speed, soc, gear selection, fault
     if(debug) printMessage(rxId, len, rxBuf);
     vehicle_speed_kph = rxBuf[0];
-    state_of_charge_percent = rxBuf[2] * 256  + rxBuf[1];       //SoC info on second and third bytes (multiplied by 100 e.g. 10000 == 100.00%)
+    state_of_charge_percent = rxBuf[2] * 256  + rxBuf[1];       //SoC info on byte[2] and byte[1] (multiplied by 100 e.g. 10000 == 100.00%)
     Serial.println(state_of_charge_percent);
     //---------------------------------------------------------------===
     speed = state_of_charge_percent / 100 * 0.64;                        //for now using speedo for state of charge percentage
     //-----------------------------------------------------------------------
-    // if(bitRead(rxBuf[5],0) == 1) power_status = 0x40;
-    // else power_status = 0x20;
-    if(bitRead(rxBuf[5],1) == 1) minor_fault = true;
+    if(bitRead(rxBuf[4],0) == 1) power_status = 0x40;
+    else power_status = 0x20;
+    if(bitRead(rxBuf[4],1) == 1) minor_fault = true;
     else minor_fault = false;
-    if(bitRead(rxBuf[5],2) == 1) major_fault = true;
+    if(bitRead(rxBuf[4],2) == 1) major_fault = true;
     else major_fault = false;
   }
 
-  if(rxId == 0x98FF7C3C){                                  //parking brake
+  if(rxId == 0x98FF7C3C){                                  //Extended ID (0x18FF7C3C): parking brake
     if(debug) printMessage(rxId, len, rxBuf);
     Serial.println(major_fault);
-    if(bitRead(rxBuf[0],4) == 1) parking_brake_light = byte(0xC0);        //first byte is parking brake status on = 0x5F, off = 0x4F
+    if(bitRead(rxBuf[0],4) == 1) parking_brake_light = byte(0xC0);        //byte[0] is parking brake status: on = 0x5F, off = 0x4F
     else parking_brake_light = byte(0x00);
     if(bitRead(rxBuf[0],3) == 1) high_voltage_active = true;
     else high_voltage_active = false;
@@ -145,25 +145,26 @@ void readCAN2(){
     else low_voltage_active = false;
   }
 
-  if(rxId == 0x80FF7B47){
-    //gear request on first byte N = 0xFA, D = 0xF2, R = 0xEA, 0xDA = parking brake
+  if(rxId == 0x80FF7B47){                                 //Extended ID (0x00FF7B47)
+    //gear request on byte[0]: N = 0xFA, D = 0xF2, R = 0xEA, 0xDA = parking brake request
   }
 
-  if(rxId == 0x98FFE43C){
-    //brake pedal status of platform on third byte 0x01 = pedal pressed, 0x00 = pedal
+  if(rxId == 0x98FFE43C){                                     //Extended ID (0x18FFE43C)
+    if(bitRead(rxBuf[2],0) == 1) brake_pedal_pressed = true;  //brake pedal status of platform on third byte 0x01 = pedal pressed, 0x00 = pedal+
+    else brake_pedal_pressed = false;
   }
 }
 
 void sendData(){
   //----------------------------------------------------------- CANBUS MESSAGES -----------------------------------------
-  const byte seatbelt[8] = {0x80, 0x5F, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x28};
-  const byte battery_light_off[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-  const byte door_ajar[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};             
-  const byte abs_data[8] = {0x00, 0x00, abs_light, 0x00, 0x00, 0x00, 0x00, stability_control};
-  const byte MIL_oil_pressure[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};                    //turns off MIL and oil pressure lights
+  byte seatbelt[8] = {0x80, 0x5F, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x28};
+  byte battery_light_off[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  byte door_ajar[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};             
+  byte abs_data[8] = {0x00, 0x00, abs_light, 0x00, 0x00, 0x00, 0x00, stability_control};
+  byte MIL_oil_pressure[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};                          //turns off MIL and oil pressure lights
   byte keepOn[8] = {power_status, turn_signal, backlight, 0x0A, 0x4C, 0x00, parking_brake_light, 0x00};      //wakeup message
-  const byte hydroboost1[8] = {0x00, 0x00, 0x00, hydro1, 0x00, 0x00, 0x00, 0x00}; 
-  const byte hydroboost2[8] = {0x83,0x69, 0x81, 0x4F, 0x81, 0x4F, hydro2, 0x00};
+  byte hydroboost1[8] = {0x00, 0x00, 0x00, hydro1, 0x00, 0x00, 0x00, 0x00}; 
+  byte hydroboost2[8] = {0x83,0x69, 0x81, 0x4F, 0x81, 0x4F, hydro2, 0x00};
   byte engine_temp_data[8] = {engine_temp, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00};
   byte trans_temp_data[8] = {0x00, 0x00, 0x00, trans_temp, 0x00, 0x00, 0x00, 0x00};
   byte rpm_speed_data[8] = {rpm, 0x4B, speed, 0x00, 0x00, 0x00, 0x00, 0x00};
