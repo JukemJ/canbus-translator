@@ -163,21 +163,21 @@ void sendData(){
   byte battery_light_data[8] = {0x00, battery_light, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
   byte door_ajar[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};             
   byte abs_data[8] = {0x00, 0x00, abs_light, 0x00, 0x00, 0x00, 0x00, stability_control};
-  byte MIL_oil_pressure[8] = {0x00, check_engine_light, oil_pressure, 0x00, 0x00, 0x00, 0x00, 0x00};                          //turns off MIL and oil pressure lights
-  byte keepOn[8] = {power_status, turn_signal, backlight, 0x0A, 0x4C, 0x00, parking_brake_light, 0x00};      //wakeup message
+  byte MIL_oil_pressure[8] = {0x00, check_engine_light, oil_pressure, 0x00, 0x00, 0x00, 0x00, 0x00};                    // MIL and oil pressure lights
+  byte keepOn[8] = {power_status, turn_signal, backlight, 0x0A, 0x4C, 0x00, parking_brake_light, 0x00};                 // wakeup message
   byte hydroboost[8] = {0x00, 0x00, hydroboost_light, 0x00, 0x00, 0x00, 0x00, 0x00}; 
   byte engine_temp_data[8] = {engine_temp, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00};
   byte trans_temp_data[8] = {0x00, 0x00, 0x00, trans_temp, 0x00, 0x00, 0x00, 0x00};
   byte rpm_speed_data[8] = {rpm, 0x4B, speed, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-  if(major_fault) check_engine_light = 0x02;
-  else if(minor_fault) check_engine_light = 0x01;
+  if(major_fault) check_engine_light = 0x02;            // flashing MIL for major fault
+  else if(minor_fault) check_engine_light = 0x01;       // solid MIL for minor fault
   else check_engine_light = 0x00;
-  if(high_voltage_active) battery_light = 0x00;
+  if(high_voltage_active) battery_light = 0x00;         // turn on battery light if HV fault
   else battery_light = 0x10;
   CAN0.sendMsgBuf(0x3B3, 0, 8, keepOn);
-  CAN0.sendMsgBuf(0x3AE, 0, 8, door_ajar);              //cancel door ajar message and chime
-  CAN0.sendMsgBuf(0x42C, 0, 8, battery_light_data);      //turns off battery light
+  CAN0.sendMsgBuf(0x3AE, 0, 8, door_ajar);              // cancel door ajar message and chime
+  CAN0.sendMsgBuf(0x42C, 0, 8, battery_light_data);
   CAN0.sendMsgBuf(0x156, 0, 8, engine_temp_data);
   CAN0.sendMsgBuf(0x230, 0, 8, trans_temp_data);
   CAN0.sendMsgBuf(0x415, 0, 8, abs_data);
