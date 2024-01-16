@@ -24,6 +24,8 @@ MCP_CAN CAN3(7);                          // CAN3 is input from Transit
                                          
 //--------------------------------------------------- VEHICLE VARIABLES --------------------------------------------
 byte sndStat;
+byte check_engine_light = 0x00;       // 0x00 = off, 0x01 = on, 0x02 = flashing
+byte oil_pressure = 0x00;             // 0x00 = off, 0x04 = on also controls gauge
 byte backlight = 0x10;                // 0x00 = off, 0x10 = on
 byte parking_brake_light = 0xC0;      // 0x00 = off, 0xC0 = on
 byte speed = 0x00;                    // speed from 0x00 - 0x40(64)
@@ -35,9 +37,9 @@ byte trans_temp = 0x40;               // 0x40 - 0x80
 byte engine_temp = 0x60;              // 0x60 - 0x90, 0xC0 - 0xCC, 0xB0 = overheat warning
 byte gear_selection = 0x00;           // 0x00 = P, 0x20 = R, 0x40 = N, 0x60 = D, 0x80 = M, 0xC0 = 2, 0xA0 = 1
 byte manual_gear = 0x10;              // 0x10 = 1, 0x20 = 2, 0x30 = 3
-byte hydro1 = 0x40;                   // 0x40 = off, 0x80 = on
-byte hydro2 = 0x00;                   // 0x00 = off, 0x20 = on
+byte hydroboost_light = 0x00;         // 0x00 = off, 0x80 = on
 byte power_status = 0x00;              // 0x10 = off, 0x20 = ACC, 0x40 = key on
+byte battery_light = 0x00;            // 0x00 = off, 0x10 = on
 
 unsigned int vehicle_speed_kph = 0;
 unsigned int state_of_charge_percent = 0;
@@ -158,24 +160,29 @@ void readCAN2(){
 void sendData(){
   //----------------------------------------------------------- CANBUS MESSAGES -----------------------------------------
   byte seatbelt[8] = {0x80, 0x5F, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x28};
-  byte battery_light_off[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  byte battery_light_data[8] = {0x00, battery_light, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
   byte door_ajar[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};             
   byte abs_data[8] = {0x00, 0x00, abs_light, 0x00, 0x00, 0x00, 0x00, stability_control};
-  byte MIL_oil_pressure[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};                          //turns off MIL and oil pressure lights
+  byte MIL_oil_pressure[8] = {0x00, check_engine_light, oil_pressure, 0x00, 0x00, 0x00, 0x00, 0x00};                          //turns off MIL and oil pressure lights
   byte keepOn[8] = {power_status, turn_signal, backlight, 0x0A, 0x4C, 0x00, parking_brake_light, 0x00};      //wakeup message
-  byte hydroboost1[8] = {0x00, 0x00, 0x00, hydro1, 0x00, 0x00, 0x00, 0x00}; 
-  byte hydroboost2[8] = {0x83,0x69, 0x81, 0x4F, 0x81, 0x4F, hydro2, 0x00};
+  byte hydroboost[8] = {0x00, 0x00, hydroboost_light, 0x00, 0x00, 0x00, 0x00, 0x00}; 
   byte engine_temp_data[8] = {engine_temp, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00};
   byte trans_temp_data[8] = {0x00, 0x00, 0x00, trans_temp, 0x00, 0x00, 0x00, 0x00};
   byte rpm_speed_data[8] = {rpm, 0x4B, speed, 0x00, 0x00, 0x00, 0x00, 0x00};
 
+  if(major_fault) check_engine_light = 0x02;
+  else if(minor_fault) check_engine_light = 0x01;
+  else check_engine_light = 0x00;
+  if(high_voltage_active) battery_light = 0x00;
+  else battery_light = 0x10;
   CAN0.sendMsgBuf(0x3B3, 0, 8, keepOn);
   CAN0.sendMsgBuf(0x3AE, 0, 8, door_ajar);              //cancel door ajar message and chime
-  if(high_voltage_active) CAN0.sendMsgBuf(0x42C, 0, 8, battery_light_off);      //turns off battery light
+  CAN0.sendMsgBuf(0x42C, 0, 8, battery_light_data);      //turns off battery light
   CAN0.sendMsgBuf(0x156, 0, 8, engine_temp_data);
   CAN0.sendMsgBuf(0x230, 0, 8, trans_temp_data);
   CAN0.sendMsgBuf(0x415, 0, 8, abs_data);
-  if(!major_fault) CAN0.sendMsgBuf(0x420, 0, 8, MIL_oil_pressure);  
+  CAN0.sendMsgBuf(0x40C, 0, 8, hydroboost);
+  CAN0.sendMsgBuf(0x420, 0, 8, MIL_oil_pressure);  
   CAN0.sendMsgBuf(0x201, 0, 8, rpm_speed_data);
 
   // sndStat = CAN0.sendMsgBuf(0x165, 0, 8, hydroboost1);
