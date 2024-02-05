@@ -11,16 +11,16 @@ char msgString[128];                        // Array to store serial string
 bool debug = true;                          // set to true to print out read messages in readCAN function
 long int counter = 0;
 
-#define CAN0_INT 8                        //set interrupt pins for reading CAN
-#define CAN1_INT 2                             
+#define CAN0_INT 6                        //set interrupt pins for reading CAN
+#define CAN1_INT 8                             
 #define CAN2_INT 4
-#define CAN3_INT 6
+#define CAN3_INT 10
 
                                           // Set CS pins
-MCP_CAN CAN0(A0);                         // CAN0 is output to IPC
-MCP_CAN CAN1(3);                          // CAN1 is input from BCM
-MCP_CAN CAN2(5);                          // CAN2 is input from platform
-MCP_CAN CAN3(7);                          // CAN3 is input from Transit
+MCP_CAN CAN0(5);                         // CAN0 is output to IPC
+MCP_CAN CAN1(7);                          // CAN1 is input from BCM
+MCP_CAN CAN2(3);                          // CAN2 is input from platform
+MCP_CAN CAN3(9);                          // CAN3 is input from Transit
                                          
 //--------------------------------------------------- VEHICLE VARIABLES --------------------------------------------
 byte sndStat;
