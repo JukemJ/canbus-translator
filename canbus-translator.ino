@@ -38,8 +38,10 @@ byte engine_temp = 0x60;              // 0x60 - 0x90, 0xC0 - 0xCC, 0xB0 = overhe
 byte gear_selection = 0x00;           // 0x00 = P, 0x20 = R, 0x40 = N, 0x60 = D, 0x80 = M, 0xC0 = 2, 0xA0 = 1
 byte manual_gear = 0x10;              // 0x10 = 1, 0x20 = 2, 0x30 = 3
 byte hydroboost_light = 0x00;         // 0x00 = off, 0x80 = on
-byte power_status = 0x00;              // 0x10 = off, 0x20 = ACC, 0x40 = key on
+byte power_status = 0x00;             // 0x10 = off, 0x20 = ACC, 0x40 = key on
 byte battery_light = 0x00;            // 0x00 = off, 0x10 = on
+byte HV_battery_current = 0x00;       // 0x00 = -819A, 0x40 = +819A
+byte HV_battery_voltage = 0x00;       // 0x00 - 0x10  max voltage: 102V???
 
 unsigned int vehicle_speed_kph = 0;
 unsigned int state_of_charge_percent = 0;
@@ -91,6 +93,18 @@ void loop()
       sendData();
       counter++;
     }
+
+  if(counter % 10 == 0){
+    Serial.print("Voltage: ");
+    Serial.print(HV_battery_voltage);
+    Serial.println(" V")
+    Serial.print("Current: ");
+    Serial.print(HV_battery_current);
+    Serial.println(" A");
+    Serial.print("Speed: ");
+    Serial.print(vehicle_speed_kph);
+    Serial.println(" kph");
+    }
   
 }
 
@@ -120,10 +134,16 @@ void readCAN2(){
 
   //if(debug && rxId > 0xFFF) printMessage(rxId, len, rxBuf);
 
+  if(rxId == 0x666){                                    //BMS info
+    if(debug) printMessage(rxId, len, rxBuf);
+    HV_battery_current = rxBuf[1] * 0.1 - 819;   
+    HV_battery_voltage = rxBuf[2] * 0.1;                         
+  }
+
   if(rxId == 0x98FFE23C){                              //Extended ID (0x18FFE23C): speed, soc, gear selection, fault
     if(debug) printMessage(rxId, len, rxBuf);
     vehicle_speed_kph = rxBuf[0];
-    state_of_charge_percent = rxBuf[2] * 256  + rxBuf[1];       //SoC info on byte[2] and byte[1] (multiplied by 100 e.g. 10000 == 100.00%)
+    state_of_charge_percent = rxBuf[1] * 256  + rxBuf[2];       //SoC info on byte[2] and byte[1] (multiplied by 100 e.g. 10000 == 100.00%)
     //Serial.println(state_of_charge_percent);
     //---------------------------------------------------------------===
     if(high_voltage_active) speed = state_of_charge_percent / 100 * 0.64;
